@@ -5,9 +5,10 @@
   "main": "src/extension.js",
   "type": "module",
   "scripts": {
-    "build": "node scripts/build.mjs",
+    "build": "node scripts/simple-build.js",
+    "build:esm": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs --watch",
-    "package": "node scripts/build.mjs --package",
+    "package": "node scripts/simple-build.js --package",
     "test": "node scripts/test-connection.mjs",
     "clean": "rm -rf dist n8n-mcp-connector.dxt"
   },
