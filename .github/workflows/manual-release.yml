@@ -1,0 +1,52 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+    
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Build extension
+      run: npm run build
+    
+    - name: Package extension
+      run: npm run package
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ github.event.inputs.version }}
+        name: Release v${{ github.event.inputs.version }}
+        files: n8n-mcp-connector.dxt
+        body: |
+          ## n8n MCP Server Connector v${{ github.event.inputs.version }}
+          
+          ### Installation
+          1. Download `n8n-mcp-connector.dxt` below
+          2. Open Claude Desktop
+          3. Go to Extensions → Install Extension
+          4. Select the downloaded file
+          
+          ### What's Changed
+          See [CHANGELOG.md](https://github.com/shalalalaw/n8n-mcp-connector/blob/main/CHANGELOG.md) for details.
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
