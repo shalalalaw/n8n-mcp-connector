@@ -24,10 +24,29 @@ jobs:
       run: npm install
     
     - name: Build extension
-      run: npm run build
+      run: |
+        echo "Building extension..."
+        npm run build
+        echo "Contents of dist:"
+        ls -la dist/
     
     - name: Package extension
-      run: npm run package
+      run: |
+        echo "Packaging extension..."
+        npm run package
+        echo "Checking for .dxt file:"
+        ls -la *.dxt
+    
+    - name: Verify package exists
+      run: |
+        if [ ! -f "n8n-mcp-connector.dxt" ]; then
+          echo "ERROR: n8n-mcp-connector.dxt not found!"
+          echo "Current directory contents:"
+          ls -la
+          exit 1
+        fi
+        echo "Package size:"
+        ls -lh n8n-mcp-connector.dxt
     
     - name: Create Release
       uses: softprops/action-gh-release@v2

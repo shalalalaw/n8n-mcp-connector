@@ -32,6 +32,11 @@ jobs:
     - name: Build extension
       run: npm run build
     
+    - name: Check dist folder
+      run: |
+        echo "Contents of dist folder:"
+        ls -la dist/ || echo "No dist folder found"
+    
     - name: Create test config
       run: |
         echo '{
@@ -48,11 +53,18 @@ jobs:
       continue-on-error: true
     
     - name: Package extension
-      run: npm run package
+      run: |
+        echo "Running package command..."
+        npm run package
+        echo "Checking for .dxt file:"
+        ls -la *.dxt || echo "No .dxt file found"
     
     - name: Upload artifact
-      if: matrix.node-version == '20.x'
+      if: matrix.node-version == '20.x' && success()
       uses: actions/upload-artifact@v4
       with:
         name: n8n-mcp-connector-dev
-        path: n8n-mcp-connector.dxt
+        path: |
+          n8n-mcp-connector.dxt
+          dist/
+        if-no-files-found: warn
