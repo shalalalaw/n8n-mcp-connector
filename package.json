@@ -1,0 +1,38 @@
+{
+  "name": "n8n-mcp-connector",
+  "version": "1.0.0",
+  "description": "Claude Desktop Extension for connecting to n8n MCP Server Triggers",
+  "main": "src/extension.js",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "node scripts/build.js --watch",
+    "package": "node scripts/build.js --package",
+    "test": "node scripts/test-connection.js",
+    "clean": "rm -rf dist n8n-mcp-connector.dxt"
+  },
+  "keywords": [
+    "n8n",
+    "mcp",
+    "claude",
+    "desktop-extension",
+    "model-context-protocol"
+  ],
+  "author": "shalalalaw",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shalalalaw/n8n-mcp-connector.git"
+  },
+  "dependencies": {
+    "@anthropic/claude-desktop-sdk": "^1.0.0",
+    "@anthropic/mcp-client": "^1.0.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.0",
+    "archiver": "^6.0.0",
+    "chokidar": "^3.5.0",
+    "chalk": "^5.3.0"
+  }
+}

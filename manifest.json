@@ -1,0 +1,70 @@
+{
+  "id": "n8n-mcp-connector",
+  "name": "n8n MCP Server Connector",
+  "version": "1.0.0",
+  "description": "Connect Claude Desktop to MCP Server Triggers hosted on n8n instances",
+  "author": {
+    "name": "shalalalaw",
+    "url": "https://github.com/shalalalaw"
+  },
+  "repository": "https://github.com/shalalalaw/n8n-mcp-connector",
+  "license": "MIT",
+  "main": "dist/extension.js",
+  "icon": "icon.svg",
+  "permissions": [
+    "network",
+    "storage",
+    "notifications",
+    "mcp-proxy"
+  ],
+  "requirements": {
+    "claude-desktop": ">=1.0.0"
+  },
+  "configuration": {
+    "mcp_endpoints": {
+      "type": "array",
+      "title": "MCP Server Endpoints",
+      "description": "n8n instances running MCP Server Triggers",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Identifier for this MCP server"
+          },
+          "url": {
+            "type": "string",
+            "title": "MCP Server URL",
+            "description": "Full webhook URL to the MCP Server Trigger",
+            "format": "uri"
+          },
+          "auth_type": {
+            "type": "string",
+            "title": "Authentication",
+            "enum": ["none", "basic", "bearer", "api_key"],
+            "default": "none"
+          },
+          "auth_value": {
+            "type": "string",
+            "title": "Auth Value",
+            "format": "password"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username",
+            "description": "For basic authentication"
+          },
+          "timeout": {
+            "type": "number",
+            "title": "Timeout (seconds)",
+            "default": 30,
+            "minimum": 5,
+            "maximum": 300
+          }
+        },
+        "required": ["name", "url", "auth_type"]
+      }
+    }
+  }
+}
