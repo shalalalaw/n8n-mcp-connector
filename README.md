@@ -1,5 +1,9 @@
 # n8n MCP Server Connector
 
+[![Build and Test](https://github.com/shalalalaw/n8n-mcp-connector/actions/workflows/build.yml/badge.svg)](https://github.com/shalalalaw/n8n-mcp-connector/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/shalalalaw/n8n-mcp-connector)](https://github.com/shalalalaw/n8n-mcp-connector/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Connect Claude Desktop to MCP Server Triggers hosted on your n8n instances!
 
 ## Overview
