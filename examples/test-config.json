@@ -1,0 +1,25 @@
+{
+  "endpoints": [
+    {
+      "name": "local-dev",
+      "url": "http://localhost:5678/webhook/mcp-server",
+      "auth_type": "none",
+      "timeout": 30
+    },
+    {
+      "name": "production",
+      "url": "https://n8n.company.com/webhook/abc123/mcp-server",
+      "auth_type": "bearer",
+      "auth_value": "your-bearer-token-here",
+      "timeout": 30
+    },
+    {
+      "name": "staging-basic-auth",
+      "url": "https://staging.n8n.company.com/webhook-test/mcp",
+      "auth_type": "basic",
+      "username": "mcp-user",
+      "auth_value": "password123",
+      "timeout": 45
+    }
+  ]
+}

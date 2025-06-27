@@ -1,0 +1,68 @@
+{
+  "name": "MCP Server Example",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mcp-server",
+        "responseMode": "responseNode",
+        "options": {
+          "cors": true
+        }
+      },
+      "id": "webhook_1",
+      "name": "MCP Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Handle MCP protocol requests\nconst request = $input.item.json;\n\nif (!request.jsonrpc || request.jsonrpc !== '2.0') {\n  return {\n    jsonrpc: '2.0',\n    error: {\n      code: -32600,\n      message: 'Invalid Request: Not a JSON-RPC 2.0 request'\n    },\n    id: request.id || null\n  };\n}\n\nconst method = request.method;\nconst params = request.params || {};\n\n// Handle different MCP methods\nswitch (method) {\n  case 'tools/list':\n    return {\n      jsonrpc: '2.0',\n      result: {\n        tools: [\n          {\n            name: 'get_time',\n            description: 'Get the current time',\n            inputSchema: {\n              type: 'object',\n              properties: {\n                timezone: {\n                  type: 'string',\n                  description: 'Timezone (e.g., UTC, EST)',\n                  default: 'UTC'\n                }\n              }\n            }\n          },\n          {\n            name: 'echo',\n            description: 'Echo back the input',\n            inputSchema: {\n              type: 'object',\n              properties: {\n                message: {\n                  type: 'string',\n                  description: 'Message to echo'\n                }\n              },\n              required: ['message']\n            }\n          },\n          {\n            name: 'random_number',\n            description: 'Generate a random number',\n            inputSchema: {\n              type: 'object',\n              properties: {\n                min: {\n                  type: 'number',\n                  description: 'Minimum value',\n                  default: 0\n                },\n                max: {\n                  type: 'number',\n                  description: 'Maximum value',\n                  default: 100\n                }\n              }\n            }\n          }\n        ]\n      },\n      id: request.id\n    };\n    \n  case 'tools/call':\n    const toolName = params.name;\n    const toolArgs = params.arguments || {};\n    \n    let result;\n    \n    switch (toolName) {\n      case 'get_time':\n        const timezone = toolArgs.timezone || 'UTC';\n        const now = new Date();\n        result = {\n          time: now.toLocaleString('en-US', { timeZone: timezone }),\n          timezone: timezone,\n          timestamp: now.toISOString()\n        };\n        break;\n        \n      case 'echo':\n        result = {\n          echo: toolArgs.message || 'No message provided',\n          timestamp: new Date().toISOString()\n        };\n        break;\n        \n      case 'random_number':\n        const min = toolArgs.min || 0;\n        const max = toolArgs.max || 100;\n        result = {\n          number: Math.floor(Math.random() * (max - min + 1)) + min,\n          min: min,\n          max: max\n        };\n        break;\n        \n      default:\n        return {\n          jsonrpc: '2.0',\n          error: {\n            code: -32601,\n            message: `Method not found: Unknown tool '${toolName}'`\n          },\n          id: request.id\n        };\n    }\n    \n    return {\n      jsonrpc: '2.0',\n      result: {\n        content: [\n          {\n            type: 'text',\n            text: JSON.stringify(result, null, 2)\n          }\n        ]\n      },\n      id: request.id\n    };\n    \n  default:\n    return {\n      jsonrpc: '2.0',\n      error: {\n        code: -32601,\n        message: `Method not found: '${method}'`\n      },\n      id: request.id\n    };\n}\n"
+      },
+      "id": "code_1",
+      "name": "MCP Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_1",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "webhook_1": {
+      "main": [
+        [
+          {
+            "node": "code_1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code_1": {
+      "main": [
+        [
+          {
+            "node": "respond_1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "mcp-server-example"
+}
