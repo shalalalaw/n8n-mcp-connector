@@ -17,7 +17,7 @@ This extension allows Claude Desktop to connect to Model Context Protocol (MCP) 
 - 🛠️ Automatic tool discovery and registration
 - 📊 Connection status monitoring
 - ⚡ Real-time tool execution
-- 🔄 Automatic reconnection handling
+- 🔄 Simple, lightweight implementation using vanilla JavaScript
 
 ## Installation
 
@@ -45,30 +45,42 @@ Example n8n webhook configuration:
 
 ## Configuration
 
-When you install the extension, you'll be prompted to add your n8n MCP server endpoints:
+When you install the extension, you'll be prompted to add your n8n MCP server endpoints as JSON configuration:
 
 ### Endpoint Configuration
 
-- **Name**: A friendly identifier (e.g., "production-tools", "dev-mcp")
-- **URL**: The full webhook URL from n8n (e.g., `https://n8n.mysite.com/webhook/abc123/mcp-server`)
-- **Authentication Type**:
-  - **None**: No authentication required
-  - **Basic Auth**: Username and password
-  - **Bearer Token**: JWT or OAuth token
-  - **API Key**: Custom API key header
-- **Timeout**: Request timeout in seconds (default: 30)
-
-### Example Configuration
+Configure endpoints as a JSON array with the following structure:
 
 ```json
-{
-  "name": "production-tools",
-  "url": "https://n8n.company.com/webhook/prod-mcp-server",
-  "auth_type": "bearer",
-  "auth_value": "your-bearer-token",
-  "timeout": 30
-}
+[
+  {
+    "name": "production-tools",
+    "url": "https://n8n.company.com/webhook/prod-mcp-server",
+    "auth_type": "bearer",
+    "auth_value": "your-bearer-token",
+    "timeout": 30
+  },
+  {
+    "name": "dev-tools",
+    "url": "https://dev-n8n.company.com/webhook/dev-mcp",
+    "auth_type": "none",
+    "timeout": 30
+  }
+]
 ```
+
+### Configuration Fields
+
+- **name**: A friendly identifier (e.g., "production-tools", "dev-mcp")
+- **url**: The full webhook URL from n8n
+- **auth_type**: Authentication method:
+  - `"none"`: No authentication required
+  - `"basic"`: Username and password (requires `username` and `auth_value`)
+  - `"bearer"`: JWT or OAuth token
+  - `"api_key"`: Custom API key header
+- **auth_value**: The credential value (token, password, or API key)
+- **username**: Username for basic auth (only needed if auth_type is "basic")
+- **timeout**: Request timeout in seconds (default: 30)
 
 ## Usage
 
@@ -80,6 +92,16 @@ Once configured, your n8n MCP tools will appear in Claude with the server name a
 You can then use these tools naturally in conversation:
 - "Use the production tools to get the latest data"
 - "Call the dev-mcp server to test the new feature"
+
+## Recent Fixes (v1.0.0)
+
+This version includes major fixes:
+- ✅ Removed dependency on non-existent `@anthropic/claude-desktop-sdk`
+- ✅ Uses proper Claude Desktop Extension API
+- ✅ Simplified build process with no complex bundling
+- ✅ Uses native `fetch` API instead of axios
+- ✅ Proper error handling and connection management
+- ✅ Works with current Claude Desktop Extension system
 
 ## Security Considerations
 
@@ -95,7 +117,7 @@ You can then use these tools naturally in conversation:
 git clone https://github.com/shalalalaw/n8n-mcp-connector
 cd n8n-mcp-connector
 
-# Install dependencies
+# Install dependencies (minimal - only build tools)
 npm install
 
 # Build the extension
@@ -108,11 +130,14 @@ npm run package
 ## Development
 
 ```bash
-# Run in watch mode
+# Build with file watching
 npm run dev
 
 # Test connections
 npm test
+
+# Clean build artifacts
+npm run clean
 ```
 
 ## Troubleshooting
@@ -126,12 +151,17 @@ npm test
 ### Tools Not Appearing
 - Check that your n8n MCP server implements the `tools/list` method
 - Verify the response format matches MCP protocol specification
-- Use the "Test All Connections" option from the extension menu
+- Use the "Connection Status" option from the extension menu
 
 ### Authentication Issues
 - For Basic Auth: Ensure both username and password are provided
 - For Bearer Token: Include only the token, not the "Bearer" prefix
 - For API Key: Verify the correct header name with your n8n setup
+
+### Configuration Issues
+- Ensure JSON configuration is valid (use a JSON validator)
+- Check that all required fields are present
+- Verify URLs are accessible from your network
 
 ## License
 
