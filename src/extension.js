@@ -1,62 +1,16 @@
-import { Extension } from '@anthropic/claude-desktop-sdk';
-import axios from 'axios';
+// n8n MCP Server Connector Extension for Claude Desktop
+// This extension connects to MCP Server Triggers hosted on n8n instances
 
-// If MCP client SDK is not available, use this simple implementation
-class SimpleMCPClient {
-  constructor(config) {
-    this.name = config.name;
-    this.transport = config.transport;
-    this.requestId = 0;
-  }
-
-  async request(method, params = {}) {
-    const requestId = ++this.requestId;
-    
-    const payload = {
-      jsonrpc: '2.0',
-      method,
-      params,
-      id: requestId,
-    };
-
-    const response = await axios.post(
-      this.transport.url,
-      payload,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.transport.headers,
-        },
-        timeout: this.transport.timeout,
-      }
-    );
-
-    if (response.data.error) {
-      throw new Error(response.data.error.message || 'Unknown error');
-    }
-
-    return response.data.result;
-  }
-
-  async disconnect() {
-    // Clean up if needed
-  }
-}
-
-// Use SDK client if available, otherwise use simple implementation
-const MCPClient = globalThis.MCPClient || SimpleMCPClient;
-
-class N8nMCPConnectorExtension extends Extension {
+class N8nMCPConnectorExtension {
   constructor() {
-    super({
-      name: 'n8n MCP Server Connector',
-      version: '1.0.0',
-      description: 'Connect to MCP Server Triggers hosted on n8n instances',
-      author: 'shalalalaw',
-    });
-
+    this.name = 'n8n MCP Server Connector';
+    this.version = '1.0.0';
+    this.description = 'Connect to MCP Server Triggers hosted on n8n instances';
+    this.author = 'shalalalaw';
+    
     this.mcpConnections = new Map();
     this.endpoints = [];
+    this.tools = new Map();
   }
 
   async onInstall() {
@@ -64,111 +18,116 @@ class N8nMCPConnectorExtension extends Extension {
   }
 
   async onActivate() {
-    this.endpoints = await this.storage.get('mcp_endpoints') || [];
-    
-    if (this.endpoints.length === 0) {
+    try {
+      // Load saved endpoints from storage
+      const savedEndpoints = await claude.storage.get('mcp_endpoints');
+      this.endpoints = savedEndpoints || [];
+      
+      if (this.endpoints.length === 0) {
+        await this.showConfigurationDialog();
+      } else {
+        await this.connectToAllServers();
+      }
+    } catch (error) {
+      console.error('Activation error:', error);
       await this.showConfigurationDialog();
-    } else {
-      await this.connectToAllServers();
     }
   }
 
   async onDeactivate() {
+    // Clean up connections
     for (const [name, connection] of this.mcpConnections) {
       try {
-        await connection.disconnect();
+        if (connection.cleanup) {
+          await connection.cleanup();
+        }
       } catch (error) {
-        console.error(`Error disconnecting from ${name}:`, error);
+        console.error(`Error cleaning up connection ${name}:`, error);
       }
     }
     this.mcpConnections.clear();
+    this.tools.clear();
   }
 
   async showConfigurationDialog() {
-    const result = await this.ui.showDialog({
+    const endpoints = this.endpoints.length > 0 ? this.endpoints : [
+      {
+        name: '',
+        url: '',
+        auth_type: 'none',
+        auth_value: '',
+        username: '',
+        timeout: 30
+      }
+    ];
+
+    const config = {
       title: 'Configure n8n MCP Server Endpoints',
-      type: 'form',
       description: 'Add your n8n instances that are running MCP Server Triggers',
+      endpoints: endpoints
+    };
+
+    // Show simple prompt for configuration
+    const result = await claude.ui.showDialog({
+      type: 'form',
+      title: config.title,
+      content: config.description,
       fields: [
         {
-          id: 'endpoints',
-          type: 'dynamic-list',
-          label: 'MCP Server Endpoints',
-          itemFields: [
-            {
-              id: 'name',
-              type: 'text',
-              label: 'Name',
-              placeholder: 'e.g., production-mcp',
-              required: true,
-            },
-            {
-              id: 'url',
-              type: 'url',
-              label: 'MCP Server URL',
-              placeholder: 'https://n8n.mysite.com/webhook/mcp-server',
-              required: true,
-            },
-            {
-              id: 'auth_type',
-              type: 'select',
-              label: 'Authentication Type',
-              options: [
-                { value: 'none', label: 'None' },
-                { value: 'basic', label: 'Basic Auth' },
-                { value: 'bearer', label: 'Bearer Token' },
-                { value: 'api_key', label: 'API Key' },
-              ],
-              default: 'none',
-              required: true,
-            },
-            {
-              id: 'auth_value',
-              type: 'password',
-              label: 'Authentication Value',
-              showIf: { auth_type: ['basic', 'bearer', 'api_key'] },
-            },
-            {
-              id: 'username',
-              type: 'text',
-              label: 'Username',
-              showIf: { auth_type: 'basic' },
-            },
-            {
-              id: 'timeout',
-              type: 'number',
-              label: 'Timeout (seconds)',
-              default: 30,
-              min: 5,
-              max: 300,
-            },
-          ],
-          minItems: 1,
-          addButtonText: 'Add MCP Server',
-        },
-      ],
-      buttons: [
-        { id: 'cancel', label: 'Cancel', style: 'secondary' },
-        { id: 'save', label: 'Save & Connect', style: 'primary' },
-      ],
+          type: 'text',
+          name: 'endpoints_json',
+          label: 'Endpoints Configuration (JSON)',
+          value: JSON.stringify(endpoints, null, 2),
+          multiline: true,
+          rows: 10,
+          placeholder: JSON.stringify([{
+            name: 'production-mcp',
+            url: 'https://n8n.mysite.com/webhook/mcp-server',
+            auth_type: 'none',
+            auth_value: '',
+            username: '',
+            timeout: 30
+          }], null, 2)
+        }
+      ]
     });
 
-    if (result.buttonId === 'save' && result.values.endpoints) {
-      this.endpoints = result.values.endpoints;
-      await this.storage.set('mcp_endpoints', this.endpoints);
-      await this.connectToAllServers();
+    if (result && result.endpoints_json) {
+      try {
+        const parsedEndpoints = JSON.parse(result.endpoints_json);
+        if (Array.isArray(parsedEndpoints)) {
+          this.endpoints = parsedEndpoints;
+          await claude.storage.set('mcp_endpoints', this.endpoints);
+          await this.connectToAllServers();
+        } else {
+          throw new Error('Configuration must be an array');
+        }
+      } catch (error) {
+        await claude.ui.showMessage({
+          type: 'error',
+          title: 'Configuration Error',
+          message: `Invalid JSON configuration: ${error.message}`
+        });
+      }
     }
   }
 
   async connectToAllServers() {
+    // Clear existing connections
     for (const [name, connection] of this.mcpConnections) {
-      await connection.disconnect();
+      if (connection.cleanup) {
+        await connection.cleanup();
+      }
     }
     this.mcpConnections.clear();
 
     const connectionResults = [];
     
     for (const endpoint of this.endpoints) {
+      if (!endpoint.name || !endpoint.url) {
+        continue;
+      }
+      
       const result = await this.connectToMCPServer(endpoint);
       connectionResults.push({
         name: endpoint.name,
@@ -180,40 +139,70 @@ class N8nMCPConnectorExtension extends Extension {
     const successCount = connectionResults.filter(r => r.success).length;
     const failureCount = connectionResults.filter(r => !r.success).length;
 
+    let message = `Connected to ${successCount} MCP servers`;
     if (failureCount > 0) {
-      await this.ui.showNotification({
-        type: 'warning',
-        message: `Connected to ${successCount} MCP servers, ${failureCount} failed`,
-      });
-    } else {
-      await this.ui.showNotification({
-        type: 'success',
-        message: `Successfully connected to ${successCount} MCP servers`,
-      });
+      message += `, ${failureCount} failed`;
     }
+
+    await claude.ui.showMessage({
+      type: successCount > 0 ? 'info' : 'error',
+      title: 'Connection Status',
+      message: message
+    });
 
     await this.registerToolsFromServers();
   }
 
   async connectToMCPServer(endpoint) {
     try {
-      const clientConfig = {
-        name: endpoint.name,
-        transport: {
-          type: 'http',
-          url: endpoint.url,
-          timeout: endpoint.timeout * 1000,
-        },
+      const headers = {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(endpoint)
       };
 
-      if (endpoint.auth_type !== 'none') {
-        clientConfig.transport.headers = this.getAuthHeaders(endpoint);
-      }
+      const connection = {
+        name: endpoint.name,
+        url: endpoint.url,
+        headers: headers,
+        timeout: endpoint.timeout * 1000,
+        
+        async request(method, params = {}) {
+          const payload = {
+            jsonrpc: '2.0',
+            method,
+            params,
+            id: Date.now(),
+          };
 
-      const mcpClient = new MCPClient(clientConfig);
-      const response = await mcpClient.request('tools/list', {});
+          const response = await fetch(this.url, {
+            method: 'POST',
+            headers: this.headers,
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(this.timeout)
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          
+          if (data.error) {
+            throw new Error(data.error.message || 'Unknown MCP error');
+          }
+
+          return data.result;
+        },
+
+        async cleanup() {
+          // Nothing to clean up for HTTP connections
+        }
+      };
+
+      // Test connection by listing tools
+      const response = await connection.request('tools/list', {});
       
-      this.mcpConnections.set(endpoint.name, mcpClient);
+      this.mcpConnections.set(endpoint.name, connection);
 
       return {
         success: true,
@@ -234,16 +223,22 @@ class N8nMCPConnectorExtension extends Extension {
 
     switch (endpoint.auth_type) {
       case 'basic':
-        const credentials = `${endpoint.username}:${endpoint.auth_value}`;
-        headers['Authorization'] = `Basic ${Buffer.from(credentials).toString('base64')}`;
+        if (endpoint.username && endpoint.auth_value) {
+          const credentials = `${endpoint.username}:${endpoint.auth_value}`;
+          headers['Authorization'] = `Basic ${btoa(credentials)}`;
+        }
         break;
       
       case 'bearer':
-        headers['Authorization'] = `Bearer ${endpoint.auth_value}`;
+        if (endpoint.auth_value) {
+          headers['Authorization'] = `Bearer ${endpoint.auth_value}`;
+        }
         break;
       
       case 'api_key':
-        headers['X-API-Key'] = endpoint.auth_value;
+        if (endpoint.auth_value) {
+          headers['X-API-Key'] = endpoint.auth_value;
+        }
         break;
     }
 
@@ -253,39 +248,51 @@ class N8nMCPConnectorExtension extends Extension {
   async registerToolsFromServers() {
     this.tools.clear();
 
-    for (const [serverName, mcpClient] of this.mcpConnections) {
+    for (const [serverName, connection] of this.mcpConnections) {
       try {
-        const response = await mcpClient.request('tools/list', {});
+        const response = await connection.request('tools/list', {});
         const tools = response.tools || [];
 
         for (const tool of tools) {
-          const prefixedToolId = `${serverName}_${tool.name}`;
+          const toolId = `${serverName}_${tool.name}`;
           
-          this.tools.register({
-            id: prefixedToolId,
-            name: `${tool.name} (${serverName})`,
+          // Register tool with Claude Desktop
+          this.tools.set(toolId, {
+            name: tool.name,
             description: tool.description || `Tool from ${serverName}`,
             inputSchema: tool.inputSchema || { type: 'object', properties: {} },
+            serverName: serverName,
+            toolName: tool.name,
             handler: async (input) => {
-              return this.callMCPTool(serverName, tool.name, input);
-            },
+              return await this.callMCPTool(serverName, tool.name, input);
+            }
           });
         }
       } catch (error) {
         console.error(`Failed to register tools from ${serverName}:`, error);
       }
     }
+
+    // Register tools with Claude Desktop
+    for (const [toolId, tool] of this.tools) {
+      await claude.tools.register({
+        name: `${tool.name} (${tool.serverName})`,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        handler: tool.handler
+      });
+    }
   }
 
   async callMCPTool(serverName, toolName, input) {
-    const mcpClient = this.mcpConnections.get(serverName);
+    const connection = this.mcpConnections.get(serverName);
     
-    if (!mcpClient) {
+    if (!connection) {
       throw new Error(`MCP server ${serverName} not connected`);
     }
 
     try {
-      const response = await mcpClient.request('tools/call', {
+      const response = await connection.request('tools/call', {
         name: toolName,
         arguments: input,
       });
@@ -313,19 +320,16 @@ class N8nMCPConnectorExtension extends Extension {
       {
         id: 'configure',
         label: 'Configure MCP Servers',
-        icon: 'settings',
         handler: () => this.showConfigurationDialog(),
       },
       {
         id: 'refresh',
         label: 'Refresh Connections',
-        icon: 'refresh',
         handler: () => this.connectToAllServers(),
       },
       {
         id: 'status',
         label: 'Connection Status',
-        icon: 'info',
         handler: () => this.showConnectionStatus(),
       },
     ];
@@ -336,24 +340,36 @@ class N8nMCPConnectorExtension extends Extension {
     
     for (const endpoint of this.endpoints) {
       const isConnected = this.mcpConnections.has(endpoint.name);
+      const connection = this.mcpConnections.get(endpoint.name);
+      const toolCount = connection ? 
+        Array.from(this.tools.values()).filter(t => t.serverName === endpoint.name).length : 0;
+      
       status.push({
         name: endpoint.name,
         url: endpoint.url,
         connected: isConnected,
+        toolCount: toolCount
       });
     }
 
     const content = status.map(s => 
-      `${s.connected ? '✅' : '❌'} ${s.name}\n   URL: ${s.url}`
+      `${s.connected ? '✅' : '❌'} ${s.name}\n   URL: ${s.url}\n   Tools: ${s.toolCount}`
     ).join('\n\n');
 
-    await this.ui.showDialog({
-      title: 'MCP Server Connection Status',
+    await claude.ui.showDialog({
       type: 'info',
-      content,
-      buttons: [{ id: 'ok', label: 'OK', style: 'primary' }],
+      title: 'MCP Server Connection Status',
+      content: content || 'No servers configured'
     });
   }
 }
 
-export default N8nMCPConnectorExtension;
+// Initialize and register the extension
+const extension = new N8nMCPConnectorExtension();
+
+// Export for Claude Desktop
+if (typeof claude !== 'undefined') {
+  claude.extensions.register(extension);
+}
+
+export default extension;
