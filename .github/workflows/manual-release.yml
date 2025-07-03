@@ -64,6 +64,11 @@ jobs:
           4. Select the downloaded file
           
           ### What's Changed
+          - Fixed to use correct Claude Desktop Extension API
+          - Removed dependency on non-existent SDK packages
+          - Simplified build process
+          - Uses vanilla JavaScript with fetch API
+          
           See [CHANGELOG.md](https://github.com/shalalalaw/n8n-mcp-connector/blob/main/CHANGELOG.md) for details.
         draft: false
         prerelease: false
