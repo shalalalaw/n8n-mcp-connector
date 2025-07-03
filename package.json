@@ -8,7 +8,7 @@
     "build": "node scripts/simple-build.js",
     "dev": "node scripts/simple-build.js --watch",
     "package": "node scripts/simple-build.js --package",
-    "test": "node scripts/test-connection.mjs",
+    "test": "node scripts/test-connection.js",
     "clean": "rm -rf dist n8n-mcp-connector.dxt"
   },
   "keywords": [
