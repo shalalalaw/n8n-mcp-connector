@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// Simple build script that uses system zip command
+// Simple build script that copies files and creates zip
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
 
@@ -13,23 +13,19 @@ if (!fs.existsSync(distDir)) {
 
 console.log('Building extension...');
 
-// Run esbuild
-try {
-  execSync(`npx esbuild ${path.join(rootDir, 'src/extension.js')} --bundle --outfile=${path.join(distDir, 'extension.js')} --format=esm --platform=neutral --external:@anthropic/claude-desktop-sdk --external:@anthropic/mcp-client --minify`, {
-    stdio: 'inherit',
-    cwd: rootDir
-  });
-} catch (error) {
-  console.error('Build failed:', error);
-  process.exit(1);
-}
+// Copy main extension file (no bundling needed for simple JS)
+fs.copyFileSync(
+  path.join(rootDir, 'src/extension.js'),
+  path.join(distDir, 'extension.js')
+);
 
-// Copy files
+// Copy manifest
 fs.copyFileSync(
   path.join(rootDir, 'manifest.json'),
   path.join(distDir, 'manifest.json')
 );
 
+// Copy icon if exists
 if (fs.existsSync(path.join(rootDir, 'icon.svg'))) {
   fs.copyFileSync(
     path.join(rootDir, 'icon.svg'),
